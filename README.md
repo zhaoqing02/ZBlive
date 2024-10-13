@@ -2,7 +2,7 @@
 
 電視網絡視頻播放軟件，可以自定義視頻源
 
-[my-tv-0](https://github.com/lizongying/my-tv-0)
+[my-tv-0](https://github.com/xisohi/my-tv-0)
 
 ## 使用
 
@@ -52,7 +52,7 @@
 
 推薦配合使用 [my-tv-server](https://github.com/lizongying/my-tv-server)
 
-下載安裝 [releases](https://github.com/lizongying/my-tv-0/releases/)
+下載安裝 [releases](https://github.com/xisohi/my-tv-0/releases/)
 
 更多地址 [my-tv-0](https://lyrics.run/my-tv-0.html)
 
