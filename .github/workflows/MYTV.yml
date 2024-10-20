@@ -31,13 +31,21 @@ jobs:
         run: |
           latest_commit=$(git log -1 --format='%H')
           echo "Latest commit: $latest_commit"
-
-          # 如果是手动触发且没有设置 rebuild，则退出
-          if ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.rebuild != 'true' && github.sha == 'latest_commit' }}; then
-            echo "No new commits since last run or rebuild flag is not set. Exiting."
-            exit 1
+          
+          # For manual triggers, we don't need to check for new commits
+          if ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.rebuild != 'true' }}; then
+            echo "Manual trigger without rebuild flag. Continuing build process."
+          elif [ -z "${{ github.event.before }}" ]; then
+            echo "This is the first run. Continuing build process."
           else
-            echo "New commits detected or rebuild flag is set. Continuing build process."
+            previous_run_commit=${{ github.event.before }}
+            echo "Previous run commit: $previous_run_commit"
+            if [ "$latest_commit" = "$previous_run_commit" ]; then
+              echo "No new commits since last run. Exiting."
+              exit 1
+            else
+              echo "New commits detected. Continuing build process."
+            fi
           fi
 
       - name: Set up JDK 21
@@ -50,7 +58,6 @@ jobs:
 
       - name: Get History
         if: success()
-        id: get_history
         run: |
           chmod +x history.sh
           output=$(./history.sh)
@@ -88,13 +95,6 @@ jobs:
         env:
           BUILD_TOOLS_VERSION: "34.0.0"
 
-      - name: Set Asset Name
-        if: success()
-        id: set_asset_name
-        run: |
-          VERSION_WITHOUT_V=$(echo '${{ github.ref_name }}' | sed 's/^v//')
-          echo "asset_name=my-tv-0.${VERSION_WITHOUT_V}.apk" >> $GITHUB_ENV
-
       - name: Upload Release Asset
         if: success()
         uses: actions/upload-release-asset@v1
@@ -103,8 +103,10 @@ jobs:
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ${{ steps.sign_app.outputs.signedReleaseFile }}
-          asset_name: ${{ env.asset_name }}
+          asset_name: my-tv-0.main.apk
           asset_content_type: application/vnd.android.package-archive
+
+      # Additional steps for mobile and ipv6 builds can be added here
 
       - name: Run build with Gradle wrapper mobile
         if: success()
@@ -125,13 +127,6 @@ jobs:
         env:
           BUILD_TOOLS_VERSION: "34.0.0"
 
-      - name: Set Asset Name mobile
-        if: success()
-        id: set_asset_name_mobile
-        run: |
-          VERSION_WITHOUT_V=$(echo '${{ github.ref_name }}' | sed 's/^v//')
-          echo "asset_name=my-tv-0.${VERSION_WITHOUT_V}.china-mobile.apk" >> $GITHUB_ENV
-
       - name: Upload Release Asset mobile
         if: success()
         uses: actions/upload-release-asset@v1
@@ -140,7 +135,7 @@ jobs:
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ${{ steps.sign_app_mobile.outputs.signedReleaseFile }}
-          asset_name: ${{ env.asset_name_mobile }}
+          asset_name: my-tv-0.main.mobile.apk
           asset_content_type: application/vnd.android.package-archive
 
       - name: Run build with Gradle wrapper ipv6
@@ -162,13 +157,6 @@ jobs:
         env:
           BUILD_TOOLS_VERSION: "34.0.0"
 
-      - name: Set Asset Name ipv6
-        if: success()
-        id: set_asset_name_ipv6
-        run: |
-          VERSION_WITHOUT_V=$(echo '${{ github.ref_name }}' | sed 's/^v//')
-          echo "asset_name=my-tv-0.${VERSION_WITHOUT_V}.ipv6.apk" >> $GITHUB_ENV
-
       - name: Upload Release Asset ipv6
         if: success()
         uses: actions/upload-release-asset@v1
@@ -177,5 +165,5 @@ jobs:
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ${{ steps.sign_app_ipv6.outputs.signedReleaseFile }}
-          asset_name: ${{ env.asset_name_ipv6 }}
+          asset_name: my-tv-0.main.ipv6.apk
           asset_content_type: application/vnd.android.package-archive
