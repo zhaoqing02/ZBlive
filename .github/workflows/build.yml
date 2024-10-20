@@ -14,6 +14,9 @@ on:
         required: false
         type: boolean
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -26,18 +29,30 @@ jobs:
       - name: Check for new commits
         id: check_commits
         run: |
+          if git rev-parse HEAD; then
+            echo "Git repository is not empty."
+          else
+            echo "Git repository is empty. Exiting."
+            exit 1
+          fi
+
           latest_commit=$(git log -1 --format='%H')
           echo "Latest commit: $latest_commit"
-          # 获取上一次提交的SHA，这里假设我们使用一个文件来存储它
-          previous_run_commit=$(git log --format='%H' ${{ github.event.before }}^..${{ github.event.before }} 2>/dev/null)
+
+          # 在手动触发时，github.event.before 不存在，因此使用一个默认值
+          previous_run_commit=${{ github.event.before || '0000000000000000000000000000000000000000000' }}
           echo "Previous run commit: $previous_run_commit"
-          if [[ -z "$previous_run_commit" || "$latest_commit" == "$previous_run_commit" ]]; then
-            echo "No new commits since last run. Exiting."
+
+          if [[ "$latest_commit" == "$previous_run_commit" && "$rebuild" != "true" ]]; then
+            echo "No new commits since last run or rebuild flag is not set. Exiting."
             exit 1
           else
-            echo "New commits detected. Continuing build process."
+            echo "New commits detected or rebuild flag is set. Continuing build process."
           fi
-      - name: set up JDK 21
+        shell: bash
+
+      - name: Set up JDK 21
+        if: success()
         uses: actions/setup-java@v4
         with:
           java-version: '21'
@@ -45,6 +60,7 @@ jobs:
           cache: 'gradle'
 
       - name: Get History
+        if: success()
         id: get_history
         run: |
           chmod +x history.sh
@@ -52,6 +68,7 @@ jobs:
           echo "$output" > history.md
 
       - name: Create Release
+        if: success() && github.event_name != 'workflow_dispatch' && github.ref != 'refs/heads/main'
         id: create_release
         uses: actions/create-release@v1
         env:
@@ -64,9 +81,13 @@ jobs:
           body_path: history.md
 
       - name: Run build with Gradle wrapper
-        run: ./gradlew clean && ./gradlew assembleRelease -Pnet=common
+        if: success()
+        run: |
+          ./gradlew clean
+          ./gradlew assembleRelease -Pnet=common
 
       - name: Sign app APK
+        if: success()
         id: sign_app
         uses: r0adkll/sign-android-release@v1
         with:
@@ -76,16 +97,17 @@ jobs:
           keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
           keyPassword: ${{ secrets.ALIAS_PASSWORD }}
         env:
-          # override default build-tools version (29.0.3) -- optional
           BUILD_TOOLS_VERSION: "34.0.0"
 
       - name: Set Asset Name
+        if: success()
         id: set_asset_name
         run: |
           VERSION_WITHOUT_V=$(echo '${{ github.ref_name }}' | sed 's/^v//')
           echo "asset_name=my-tv-0.${VERSION_WITHOUT_V}.apk" >> $GITHUB_ENV
 
       - name: Upload Release Asset
+        if: success()
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -96,9 +118,13 @@ jobs:
           asset_content_type: application/vnd.android.package-archive
 
       - name: Run build with Gradle wrapper mobile
-        run: ./gradlew clean && ./gradlew assembleRelease -Pnet=mobile
+        if: success()
+        run: |
+          ./gradlew clean
+          ./gradlew assembleRelease -Pnet=mobile
 
       - name: Sign app APK mobile
+        if: success()
         id: sign_app_mobile
         uses: r0adkll/sign-android-release@v1
         with:
@@ -108,16 +134,17 @@ jobs:
           keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
           keyPassword: ${{ secrets.ALIAS_PASSWORD }}
         env:
-          # override default build-tools version (29.0.3) -- optional
           BUILD_TOOLS_VERSION: "34.0.0"
 
       - name: Set Asset Name mobile
+        if: success()
         id: set_asset_name_mobile
         run: |
           VERSION_WITHOUT_V=$(echo '${{ github.ref_name }}' | sed 's/^v//')
           echo "asset_name=my-tv-0.${VERSION_WITHOUT_V}.china-mobile.apk" >> $GITHUB_ENV
 
       - name: Upload Release Asset mobile
+        if: success()
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -128,9 +155,13 @@ jobs:
           asset_content_type: application/vnd.android.package-archive
 
       - name: Run build with Gradle wrapper ipv6
-        run: ./gradlew clean && ./gradlew assembleRelease -Pnet=ipv6
+        if: success()
+        run: |
+          ./gradlew clean
+          ./gradlew assembleRelease -Pnet=ipv6
 
       - name: Sign app APK ipv6
+        if: success()
         id: sign_app_ipv6
         uses: r0adkll/sign-android-release@v1
         with:
@@ -140,16 +171,17 @@ jobs:
           keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
           keyPassword: ${{ secrets.ALIAS_PASSWORD }}
         env:
-          # override default build-tools version (29.0.3) -- optional
           BUILD_TOOLS_VERSION: "34.0.0"
 
       - name: Set Asset Name ipv6
+        if: success()
         id: set_asset_name_ipv6
         run: |
           VERSION_WITHOUT_V=$(echo '${{ github.ref_name }}' | sed 's/^v//')
           echo "asset_name=my-tv-0.${VERSION_WITHOUT_V}.ipv6.apk" >> $GITHUB_ENV
 
       - name: Upload Release Asset ipv6
+        if: success()
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -158,18 +190,3 @@ jobs:
           asset_path: ${{ steps.sign_app_ipv6.outputs.signedReleaseFile }}
           asset_name: ${{ env.asset_name }}
           asset_content_type: application/vnd.android.package-archive
-
-#      - name: Gitee Create Release
-#        run: |
-#          latest_commit=$(git rev-parse HEAD)
-#          history=$(cat history.md)
-#          curl -v POST https://gitee.com/api/v5/repos/${{ github.repository }}/releases \
-#          -H "Content-Type: application/json" \
-#          -d '{
-#            "access_token": "${{ secrets.GITEE_ACCESS_TOKEN}}",
-#            "tag_name": "${{ github.ref_name }}",
-#            "name": "Release ${{ github.ref_name }}",
-#            "body": "'"$history"'",
-#            "prerelease": false,
-#            "target_commitish": "'"$latest_commit"'"
-#          }'
