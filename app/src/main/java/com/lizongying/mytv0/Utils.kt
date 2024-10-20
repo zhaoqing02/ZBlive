@@ -8,7 +8,7 @@ import com.lizongying.mytv0.ISP.CHINA_MOBILE
 import com.lizongying.mytv0.ISP.CHINA_TELECOM
 import com.lizongying.mytv0.ISP.CHINA_UNICOM
 import com.lizongying.mytv0.ISP.UNKNOWN
-import com.lizongying.mytv0.requests.TimeResponse
+import com.lizongying.mytv0.requests.HttpClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -94,15 +94,13 @@ object Utils {
      */
     private suspend fun getTimestampFromServer(): Long {
         return withContext(Dispatchers.IO) {
-            val client = okhttp3.OkHttpClient.Builder().build()
             val request = okhttp3.Request.Builder()
-                .url("https://api.m.taobao.com/rest/api3.do?api=mtop.common.getTimestamp")
+                .url("https://ip.ddnspod.com/timestamp")
                 .build()
             try {
-                client.newCall(request).execute().use { response ->
+                HttpClient.okHttpClient.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) return@withContext 0
-                    val string = response.body?.string()
-                    Gson().fromJson(string, TimeResponse::class.java).data.t.toLong()
+                    response.body?.string()?.toLong() ?: 0
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -113,12 +111,11 @@ object Utils {
 
     suspend fun getISP(): ISP {
         return withContext(Dispatchers.IO) {
-            val client = okhttp3.OkHttpClient.Builder().build()
             val request = okhttp3.Request.Builder()
                 .url("https://api.myip.la/json")
                 .build()
             try {
-                client.newCall(request).execute().use { response ->
+                HttpClient.okHttpClient.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) return@withContext UNKNOWN
                     val string = response.body?.string()
                     val isp = Gson().fromJson(string, IpInfo::class.java).location.isp_domain
