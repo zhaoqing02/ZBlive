@@ -209,6 +209,7 @@ class Sources {
 
         if (size() > -1) {
             listOf(
+                "https://xhys.lcjly.cn/live.txt",
                 "https://live.fanmingming.com/tv/m3u/ipv6.m3u",
                 "https://live.fanmingming.com/tv/m3u/itv.m3u",
                 "https://live.fanmingming.com/tv/m3u/index.m3u",
