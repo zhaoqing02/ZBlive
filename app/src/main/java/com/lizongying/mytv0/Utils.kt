@@ -24,6 +24,7 @@ enum class ISP {
     CHINA_MOBILE,
     CHINA_UNICOM,
     CHINA_TELECOM,
+    IPV6,
 }
 
 data class IpInfo(
@@ -92,7 +93,7 @@ object Utils {
             try {
                 HttpClient.okHttpClient.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) return@withContext 0
-                    response.body?.string()?.toLong() ?: 0
+                    response.bodyAlias()?.string()?.toLong() ?: 0
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -109,7 +110,7 @@ object Utils {
             try {
                 HttpClient.okHttpClient.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) return@withContext UNKNOWN
-                    val string = response.body?.string()
+                    val string = response.bodyAlias()?.string()
                     val isp = Gson().fromJson(string, IpInfo::class.java).location.isp_domain
                     when (isp) {
                         "ChinaMobile" -> CHINA_MOBILE
