@@ -1,1 +1,1 @@
-raw/channels.txt
+http://www.lcjly.cn/raw/channels.txt
